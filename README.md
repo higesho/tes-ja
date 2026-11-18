@@ -25,4 +25,5 @@ GOG.com で販売されている DOS 版を対象にしています。
 ## クレジット・権利
 
 - 美咲フォント: Copyright (C) 2002-2021 Num Kadoma。自由に利用・複製・再配布できるフリーソフトウエアです。
+- 東雲フォント: The Electronic Font Open Laboratory。パブリックドメインのフォントです。
 - The Elder Scrolls は ZeniMax Media Inc. の商標です。ゲームの画像・文章の権利は原作の権利者にあります。

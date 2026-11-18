@@ -22,6 +22,7 @@
 <h1>アリーナ 日本語化MOD</h1>
 <p class="tag">GOG.com 版の「The Elder Scrolls: Arena」（DOS の CD-ROM 版）を日本語で遊べるようにする、非公式のファンメイドMODです。
 王や依頼主・町の人々の会話、本筋の語り、キャラクター作成の問いと説明、店や宿のやりとり、ダンジョンの看板や謎かけ、品物・呪文・地名・種族・職業の名前、メニューやメッセージまで、ゲームの中の文章を日本語にしています。
+日本語の字は、DOSBox が画面を拡大して映すときに 14 ドットの細かい字で描くので、読みやすくなっています。
 ゲームのフォルダにファイルを置くだけで日本語になり、外せば英語に戻ります。</p>
 <p><a class="dl" href="https://github.com/higesho/tes-ja/releases/tag/arena-v1.0">ダウンロード（GitHub）</a></p>
 </section>
@@ -38,13 +39,15 @@
 <h2>画面</h2>
 <div class="shots">
   <figure><img src="img/title.png" alt="タイトル（メインメニュー）の画面" loading="lazy"><figcaption>タイトル</figcaption></figure>
-  <figure><img src="img/question.png" alt="キャラクター作成で生い立ちの問いに答える画面" loading="lazy"><figcaption>職業を決める問い</figcaption></figure>
-  <figure><img src="img/race.png" alt="タムリエルの地図の上に種族の説明が出る画面" loading="lazy"><figcaption>種族の説明</figcaption></figure>
+  <figure><img src="img/question.png" alt="キャラクター作成で職業を決める問いの説明が出る画面" loading="lazy"><figcaption>職業を決める問い</figcaption></figure>
+  <figure><img src="img/race.png" alt="州の名前を日本語で描いたタムリエルの地図の上に、故郷を決める文が出る画面" loading="lazy"><figcaption>故郷の州を選ぶ</figcaption></figure>
   <figure><img src="img/vision.png" alt="リア・シルメインの幻影が日本語で語りかける画面" loading="lazy"><figcaption>リア・シルメインの幻影</figcaption></figure>
-  <figure><img src="img/field.png" alt="帝国地下牢の壁の前に日本語の文が出る画面" loading="lazy"><figcaption>帝国地下牢</figcaption></figure>
+  <figure><img src="img/field.png" alt="帝国地下牢で目覚めたときの語りが日本語で出る画面" loading="lazy"><figcaption>帝国地下牢</figcaption></figure>
   <figure><img src="img/monster.png" alt="地下牢の通路でネズミと出会う画面" loading="lazy"><figcaption>怪物</figcaption></figure>
   <figure><img src="img/status.png" alt="現在地・日付・所持重量を表示した画面" loading="lazy"><figcaption>状態</figcaption></figure>
   <figure><img src="img/camp.png" alt="野営の方法を選ぶ画面" loading="lazy"><figcaption>野営</figcaption></figure>
+  <figure><img src="img/equip.png" alt="見出しやボタンを日本語で描いた持ち物の画面" loading="lazy"><figcaption>持ち物</figcaption></figure>
+  <figure><img src="img/automap.png" alt="帝国地下牢の自動地図" loading="lazy"><figcaption>地図</figcaption></figure>
 </div>
 
 <div class="text">
@@ -68,7 +71,8 @@
 <li>都市や町の人々の名前は、画面ではカタカナで表示しますが、ゲームの中では英語のまま扱われます。町の名前を打ち込んで探すときは英語で入力します。</li>
 <li>ダンジョンの謎かけの答えは英語で入力します。</li>
 <li>名前やセーブの名前は英字で入力します。</li>
-<li>メインメニュー、オープニングの物語の巻物、キャラクター作成の地図の州名、能力値の画面の項目名など、絵として描かれた文字は英語のままです。</li>
+<li>日本語の字は、窓や全画面に映すときに 14 ドットで描きます。8 ドットの字で遊びたいときは、<code>DOSBOX\ARENAJP\arenajp.ini</code> に <code>Hires=0</code> の 1 行を足します。</li>
+<li>メインメニュー、オープニングの物語、地図の州名、能力値・持ち物・呪文書の画面など、絵として描かれた文字も日本語に描き直しています（方角の目盛りなど、ごく小さな文字は英語のままです）。</li>
 </ul>
 
 <h2>ご意見・誤訳の報告</h2>
@@ -76,7 +80,7 @@
 
 <h2>クレジット</h2>
 <ul>
-<li>日本語の表示に美咲フォント（Copyright &copy; 2002-2021 Num Kadoma）を使っています。美咲フォントは、自由に利用・複製・再配布できるフリーソフトウエアです。</li>
+<li>日本語の表示に美咲フォント（Copyright &copy; 2002-2021 Num Kadoma）と東雲フォント（The Electronic Font Open Laboratory）を使っています。美咲フォントは自由に利用・複製・再配布できるフリーソフトウエア、東雲フォントはパブリックドメインです。</li>
 <li>このMODの使用は自己責任でお願いします。</li>
 </ul>
 </div>
