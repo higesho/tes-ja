@@ -13,7 +13,7 @@ GOG.com で販売されている DOS 版を対象にしています。
 | 作品 | 状態 | ダウンロード |
 |---|---|---|
 | アリーナ（The Elder Scrolls: Arena） | 公開中 | [Arena_JP.zip](https://github.com/higesho/tes-ja/releases/tag/arena-v1.1) |
-| ダガーフォール（The Elder Scrolls II: Daggerfall） | 準備中 | — |
+| ダガーフォール（The Elder Scrolls II: Daggerfall） | 公開中 | [Daggerfall_JP.zip](https://github.com/higesho/tes-ja/releases/tag/daggerfall-v1.1) |
 
 入れ方と外し方は、サイトの各作品のページをご覧ください。
 どのMODも、ゲームのファイルを書き換えません。配布物には原作のプログラムやデータは入っていません。
