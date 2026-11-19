@@ -14,7 +14,7 @@ GOG.com で販売されている DOS 版を対象にしています。
 |---|---|---|
 | アリーナ（The Elder Scrolls: Arena） | 公開中 | [Arena_JP.zip](https://github.com/higesho/tes-ja/releases/tag/arena-v1.1) |
 | ダガーフォール（The Elder Scrolls II: Daggerfall） | 公開中 | [Daggerfall_JP.zip](https://github.com/higesho/tes-ja/releases/tag/daggerfall-v1.1) |
-| ダガーフォール Daggerfall Unity 版 | 公開中 | [DaggerfallUnity_JP.zip](https://github.com/higesho/tes-ja/releases/tag/daggerfall-unity-v1.0) |
+| ダガーフォール Daggerfall Unity 1.1.1 日本語化 | 公開中 | [DaggerfallUnity_JP.zip](https://github.com/higesho/tes-ja/releases/tag/daggerfall-unity-v1.0) |
 
 入れ方と外し方は、サイトの各作品のページをご覧ください。
 DOS 版のMODは、ゲームのファイルを書き換えません。配布物には原作のプログラムやデータは入っていません。Daggerfall Unity 版は、絵の中の文字を日本語に描き直した画像を含みます。
