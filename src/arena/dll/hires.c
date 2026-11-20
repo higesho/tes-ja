@@ -28,7 +28,8 @@ static int g_xscale;             /* 横の倍率（出力と色表を突き合�
 static uint8_t *g_font16;
 
 /* ---- 字の記録 ---- */
-typedef struct { int16_t x, y; uint8_t c1, c2, col, used; uint32_t last; uint16_t seg; uint8_t painted; } Glyph;
+typedef struct { int16_t x, y; uint8_t c1, c2, col, used; uint32_t last; uint16_t seg; uint8_t painted;
+                 uint8_t was, now; int16_t px, py, npx, npy; } Glyph;   /* was/px,py: 前の画面で 16 ドットを描いた所、now/npx,npy: この画面 */
 /* 描き先（セグメント）ごとの、画面に写されたときのずれ */
 typedef struct { uint16_t seg; int16_t dx, dy; uint8_t ok; } Disp;
 #define MAXD 8
@@ -229,6 +230,25 @@ static void Paint(const Glyph *g, const uint8_t *m, int x, int y)
     }
 }
 
+static void PaintAt(Glyph *g, const uint8_t *m, int x, int y)
+{
+    g->now = 1; g->npx = (int16_t)x; g->npy = (int16_t)y;
+    Paint(g, m, x, y);
+}
+
+/* 16 ドットの字は 8 ドットの字に点の無い所にも描く。字が消えても、その行の元の画面が変わらない所は
+   DOSBox が描き直さず、16 ドットの点が残る。前の画面で描いた所の写し（scalerSourceCache）を崩して、
+   次の画面で描き直させる */
+static void ForceRedraw(int x, int y)
+{
+    int r, k;
+    if (x < 0 || y < 0 || x + 8 > 320 || y + 8 > 200) return;
+    for (r = y * g_sym; r < (y + 8) * g_sym && r < g_h; r++) {
+        uint8_t *p = (uint8_t *)g_src + r * g_cp + x * g_sxm;
+        for (k = 0; k < 8 * g_sxm; k++) p[k] ^= 0xFF;
+    }
+}
+
 static void DrawAll(void)
 {
     uint32_t h = R_SRC_HEIGHT, w = R_SRC_WIDTH, cp = R_CACHEPITCH;
@@ -246,6 +266,7 @@ static void DrawAll(void)
     g_sxm = w / 320; if (g_sxm < 1) g_sxm = 1;
     g_sym = h / 200; if (g_sym < 1) g_sym = 1;
     CursorMask();
+    for (i = 0; i < MAXG; i++) g_gl[i].now = 0;
     for (i = 0; i < MAXG; i++) {
         Glyph *g = &g_gl[i];
         const uint8_t *m;
@@ -268,13 +289,13 @@ static void DrawAll(void)
                    dg ? rd16(dg + D_CUR_W) : 0, dg ? rd16(dg + D_CUR_H) : 0, dg ? farptr(dg + D_CUR_IMG) : 0); }
         }
         g->painted = (uint8_t)(r == 1);
-        if (r == 1) { g->last = now; Paint(g, m, g->x, g->y); continue; }
+        if (r == 1) { g->last = now; PaintAt(g, m, g->x, g->y); continue; }
         if (r == 2) { g->last = now; continue; }
         /* 別の所へ写されているかもしれない */
         d = DispOf(g->seg, 0);
         if (d && d->ok) {
             r = Match(g, m, g->x + d->dx, g->y + d->dy);
-            if (r == 1) { g->last = now; Paint(g, m, g->x + d->dx, g->y + d->dy); continue; }
+            if (r == 1) { g->last = now; PaintAt(g, m, g->x + d->dx, g->y + d->dy); continue; }
             if (r == 2) { g->last = now; continue; }
         }
         if (!searched && now - g->last < 10000) {
@@ -283,11 +304,16 @@ static void DrawAll(void)
             if (Search(g, m, &dx, &dy)) {
                 d = DispOf(g->seg, 1); d->dx = (int16_t)dx; d->dy = (int16_t)dy; d->ok = 1;
                 if (g_trace) LogF("ずれ seg %04X: %d,%d", g->seg, dx, dy);
-                g->last = now; Paint(g, m, g->x + dx, g->y + dy);
+                g->last = now; PaintAt(g, m, g->x + dx, g->y + dy);
                 continue;
             }
         }
         if (now - g->last > 10000) { g_at[g->y * 320 + g->x] = 0; g->used = 0; }
+    }
+    for (i = 0; i < MAXG; i++) {
+        Glyph *g = &g_gl[i];
+        if (g->was && (!g->now || g->npx != g->px || g->npy != g->py)) ForceRedraw(g->px, g->py);
+        g->was = g->now; g->px = g->npx; g->py = g->npy;
     }
 }
 

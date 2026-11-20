@@ -280,7 +280,7 @@ static void blit_orig(const Ctx *c, u32 gl, int w, int h, s32 x, s32 y)
 /* 8 ドットの日本語を描いた位置・字・色を覚えておき、DOSBox が 1 行を拡大したあと、
    元の画面にまだその字があれば（点と色が一致すれば）、拡大後の 2 行に 16 ドットの字の行を描き直す */
 #define HI_MAX 6000
-typedef struct { s16 x, y; u8 a, b, color, used, ok, perm; u32 seen, seq; u8 vm[8]; u16 owner; u8 drawn, badrows; } HiEnt;   /* badrows: 合わなかった行（8 行ぶんの印）。どれかの行が合わない間は字全体を描かない */   /* vm: 字の点のうち確かめる点（絵の字は、出来上がった絵で字の色のまま残る点だけ） */
+typedef struct { s16 x, y; u8 a, b, color, used, ok, perm; u32 seen, seq; u8 vm[8]; u16 owner; u8 drawn, badrows, behind; } HiEnt;   /* behind: 先に描いた字の下に回っている（後から「空いた所だけ」に描かれた影） */   /* badrows: 合わなかった行（8 行ぶんの印）。どれかの行が合わない間は字全体を描かない */   /* vm: 字の点のうち確かめる点（絵の字は、出来上がった絵で字の色のまま残る点だけ） */
 static u32 hi_seq;
 static HiEnt hi_ent[HI_MAX];
 static int hi_head[200];          /* y ごとのつながり（hi_next） */
@@ -364,7 +364,10 @@ static void hi_add(s32 x, s32 y, u8 a, u8 b, u8 color)
     if (!hi_inited) hi_init();
     /* 同じ位置の古いものは置き換える */
     for (i = hi_head[y]; i >= 0; prev = i, i = hi_next[i]) {
-        if (hi_ent[i].x == x && hi_ent[i].color == color) { if (hi_ent[i].drawn && (hi_ent[i].a != a || hi_ent[i].b != b)) mark_redraw(&hi_ent[i]); hi_ent[i].a = a; hi_ent[i].b = b; hi_ent[i].seen = hi_frame; hi_ent[i].seq = ++hi_seq; memset(hi_ent[i].vm, 0xff, 8); hi_ent[i].owner = 0; hi_ent[i].badrows = 0; if (!hi_ent[i].ok) { hi_ent[i].ok = 1; mark_redraw(&hi_ent[i]); } return; }
+        if (hi_ent[i].x == x && hi_ent[i].color == color) { if (hi_ent[i].drawn && (hi_ent[i].a != a || hi_ent[i].b != b)) mark_redraw(&hi_ent[i]); /* 同じ字を同じ所に描き直しただけなら描いた順は変えない（経歴の文・記録は文を描き直し続け、
+           フレームの途中で本文だけ新しい順になると、影との重なりの点が入れ替わってちらついた） */
+            if (hi_ent[i].a != a || hi_ent[i].b != b || !hi_ent[i].ok) { hi_ent[i].seq = ++hi_seq; hi_ent[i].behind = 0; }
+            hi_ent[i].a = a; hi_ent[i].b = b; hi_ent[i].seen = hi_frame; memset(hi_ent[i].vm, 0xff, 8); hi_ent[i].owner = 0; hi_ent[i].badrows = 0; if (!hi_ent[i].ok) { hi_ent[i].ok = 1; mark_redraw(&hi_ent[i]); } return; }
     }
     if (hi_free < 0) hi_reclaim();
 #ifdef TESTCTL
@@ -373,7 +376,7 @@ static void hi_add(s32 x, s32 y, u8 a, u8 b, u8 color)
     if (hi_free < 0) return;
     i = hi_free; hi_free = hi_next[i];
     hi_ent[i].x = (s16)x; hi_ent[i].y = (s16)y; hi_ent[i].a = a; hi_ent[i].b = b; hi_ent[i].color = color;
-    hi_ent[i].used = 1; hi_ent[i].seen = hi_frame; hi_ent[i].ok = 1; hi_ent[i].seq = ++hi_seq; hi_ent[i].perm = 0; memset(hi_ent[i].vm, 0xff, 8); hi_ent[i].owner = 0; hi_ent[i].drawn = 0; hi_ent[i].badrows = 0;
+    hi_ent[i].used = 1; hi_ent[i].seen = hi_frame; hi_ent[i].ok = 1; hi_ent[i].seq = ++hi_seq; hi_ent[i].perm = 0; memset(hi_ent[i].vm, 0xff, 8); hi_ent[i].owner = 0; hi_ent[i].drawn = 0; hi_ent[i].badrows = 0; hi_ent[i].behind = 0;
     hi_next[i] = hi_head[y]; hi_head[y] = i; hi_n++;
 }
 
@@ -416,6 +419,7 @@ static void out_put(u8 *line, int px, u32 v) { if (out_unit == 4) ((u32 *)line)[
 
 static u32 dbg_until;      /* 試験用: この frame まで、行ごとの様子をログに書く */
 static int dbg_draw;       /* 試験用: 文字列を描く様子をログに書く回数 */
+static int dbg_line = -1;  /* 試験用: この行の矢印の印・字の色を一度だけログに書く（dfjp_dump.txt の 3 つ目の数） */
 int dbg_draw_ext(void) { return dbg_draw > 0; }
 /* マウスの矢印（ゲームが自分で描く。描いてあれば 0x147964 の bit0、切り取った絵 0x12ad10（幅 w の詰めた行）、
    位置 0x12af1c・0x12af20、大きさ 0x12af14・0x12af16、色 0 は透明）の、行 L の点を cur[x]=1 にする */
@@ -583,10 +587,22 @@ static u32 cb_cblit_fn(void)
     return 0;
 }
 /* curhook: 3 か所とも差し込めた（上で宣言） */
-static void rec_put(int L, const u8 *src, u8 *cur, const CurRec *c)
+static void rec_put(int L, const u8 *src, u8 *cur, const CurRec *c, int strict)
 {
     s32 i;
     if (L < c->y || L >= c->y + c->h) return;
+    if (strict) {
+        /* 古い位置の記録: この行に矢印の絵がほぼそろって残っているときだけ使う
+           （もう消えた位置で、たまたま矢印と同じ色だった字の影の点を 8 ドットのまま見せていた） */
+        int op = 0, hit = 0;
+        for (i = 0; i < c->w; i++) {
+            s32 X = c->x + i;
+            u8 v = c->img[(L - c->y) * c->w + i];
+            if (!v || X < 0 || X >= 320) continue;
+            op++; if (src[X] == v) hit++;
+        }
+        if (!op || hit * 4 < op * 3) return;
+    }
     for (i = 0; i < c->w; i++) {
         s32 X = c->x + i;
         u8 v = c->img[(L - c->y) * c->w + i];
@@ -602,10 +618,12 @@ static void cursor_row(int L, const u8 *src, u8 *cur)
     if (!located) return;
     if (curhook && !nocur) {
         int k;
-        if (asm_on) rec_put(L, src, cur, &rec_asm);
-        /* 一番新しい記録は、止まっていて描き直されなくても有効（今の矢印）。古いものは 0.5 秒 */
-        for (k = 0; k < NREC && k < rec_n; k++)
-            if (k == (rec_n - 1) % NREC || since(&rec[k].t) < 0.5) rec_put(L, src, cur, &rec[k]);
+        if (asm_on) rec_put(L, src, cur, &rec_asm, 0);
+        /* 一番新しい記録は、止まっていて描き直されなくても有効（今の矢印）。古いものは 0.5 秒、絵がそろっている行だけ */
+        for (k = 0; k < NREC && k < rec_n; k++) {
+            if (k == (rec_n - 1) % NREC) rec_put(L, src, cur, &rec[k], 0);
+            else if (since(&rec[k].t) < 0.5) rec_put(L, src, cur, &rec[k], 1);
+        }
         return;
     }
     cw = (s16)rd16(D(D_CUR_W)); chh = (s16)rd16(D(D_CUR_H));
@@ -629,7 +647,9 @@ static int hi_hidden_by_newer(const HiEnt *e, const int *idx, int ni)
 }
 static int hi_cmp_seq(const void *a, const void *b)
 {
-    u32 x = hi_ent[*(const int *)a].seq, y = hi_ent[*(const int *)b].seq;
+    const HiEnt *p = &hi_ent[*(const int *)a], *q = &hi_ent[*(const int *)b];
+    u32 x = p->seq, y = q->seq;
+    if (p->behind != q->behind) return p->behind ? -1 : 1;   /* 下に回る字を先に */
     return x < y ? -1 : x > y;
 }
 static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
@@ -637,7 +657,7 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
     /* 近くの 8 行の字を全部集める（128 で打ち切ると、裏の画面の字の記録で埋まって、上に重なった知らせの字が拾われなかった） */
     static int idx[HI_MAX];
     static u8 cur[320];          /* この行の、マウスの矢印の点（1=矢印） */
-    int ni = 0, yy, k, t;
+    int ni = 0, yy, k, t, lastbg = -1;
     u8 cols[32]; int ncol = 0;
     s32 wpx = pitch / out_unit;
     for (yy = L; yy >= 0 && yy > L - 8; yy--) {
@@ -646,6 +666,36 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
     }
     if (!ni) return;
     cursor_row(L, src, cur);
+    /* 下に回る字を見分ける: 字の点に、自分より先に描いた別の字の色が見えていれば、自分は「空いた所だけ」に描かれた
+       （経歴の文の影は本文の後に描かれるが、本文の点は消さない。後から描いた方を上として判定すると、影の字が
+       ふだんは消えた扱いになり、矢印が食い違う点を隠したときだけ 14 ドットで描かれて点が出た） */
+    {
+        static u32 topseq[320];
+        int c;
+        for (c = 0; c < 320; c++) topseq[c] = 0xFFFFFFFFu;
+        for (t = 0; t < ni; t++) {
+            const HiEnt *e = &hi_ent[idx[t]];
+            const u16 *g8 = jglyph(&jf8, e->a, e->b);
+            u8 m;
+            if (!g8) continue;
+            m = (u8)(g8[L - e->y] >> 8);
+            for (c = 0; c < 8; c++) if ((m & (0x80 >> c)) && e->x + c < 320 && src[e->x + c] == e->color && e->seq < topseq[e->x + c]) topseq[e->x + c] = e->seq;
+        }
+        for (t = 0; t < ni; t++) {
+            HiEnt *e = &hi_ent[idx[t]];
+            const u16 *g8;
+            u8 m;
+            if (e->behind || e->perm) continue;
+            g8 = jglyph(&jf8, e->a, e->b);
+            if (!g8) continue;
+            m = (u8)((g8[L - e->y] >> 8) & e->vm[L - e->y]);
+            for (c = 0; c < 8; c++) {
+                int X = e->x + c;
+                if (!(m & (0x80 >> c)) || X >= 320 || src[X] == e->color || cur[X]) continue;
+                if (topseq[X] < e->seq) { e->behind = 1; break; }
+            }
+        }
+    }
     /* ゲームが描いた順（影と本文の重なり）に並べる */
     if (ni > 1) qsort(idx, (size_t)ni, sizeof idx[0], hi_cmp_seq);
     /* まだ画面にあるか: 字の点が、この字の色か、後から描いた字（影の上の本文など）がその点を覆っているなら、まだある。
@@ -738,6 +788,22 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
             if (!f) cols[ncol++] = e->color;
         }
     }
+#ifdef TESTCTL
+    if (dbg_line == L && hi_frame <= dbg_until) {
+        char b[1400]; int bn = 0, q;
+        bn += sprintf(b + bn, "F=%u 行 %d 矢印の印:", hi_frame, L);
+        for (q = 0; q < 320 && bn < 600; q++) if (cur[q]) bn += sprintf(b + bn, " %d", q);
+        bn += sprintf(b + bn, " 字の色:");
+        for (q = 0; q < ncol; q++) bn += sprintf(b + bn, " %d", cols[q]);
+        bn += sprintf(b + bn, " 元の点 160-185:");
+        for (q = 160; q < 186; q++) bn += sprintf(b + bn, " %d", src[q]);
+        LOG("%s", b);
+        for (q = 0; q < ni; q++) {
+            const HiEnt *e = &hi_ent[idx[q]];
+            if (e->x >= 150 && e->x <= 190) LOG("  字 x=%d y=%d 色 %d ok=%d bad=%02x behind=%d perm=%d seq=%u", e->x, e->y, e->color, e->ok, e->badrows, e->behind, e->perm, e->seq);
+        }
+    }
+#endif
     /* ゲームが描いた順に描く */
     for (t = 0; t < ni; t++) {
         HiEnt *e = &hi_ent[idx[t]];
@@ -770,7 +836,9 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
                     else if (lowset) {
                         /* 下地の色: 近くの、字でない点から取る */
                         int d, q, got = -1;
-                        for (d = 1; d < 10 && got < 0; d++) {
+                        /* 字が詰まった行で矢印の点を除くと、9 点以内に下地が無いことがある（塗れずに影の点が残った）。
+                           遠くまで探し、それでも無ければこの行で前に拾った下地を使う */
+                        for (d = 1; d < 40 && got < 0; d++) {
                             int cand[2], z;
                             cand[0] = x - d; cand[1] = x + d;
                             for (z = 0; z < 2 && got < 0; z++) {
@@ -782,7 +850,8 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
                         }
                         /* 色は元の画面の点の色から（拡大後の出力から拾うと、変わった所だけ描き直した行で、
                            前に重ねた 14 ドットの字の線の色を拾って塗り広げ、字が二重のようになった） */
-                        if (got >= 0) out_put(line, px, out_unit == 4 ? ((const u32 *)DB_PAL_LUT)[src[got]] : ((const u16 *)DB_PAL_LUT)[src[got]]);
+                        if (got >= 0) lastbg = src[got];
+                        if (lastbg >= 0) out_put(line, px, out_unit == 4 ? ((const u32 *)DB_PAL_LUT)[lastbg] : ((const u16 *)DB_PAL_LUT)[lastbg]);
                     }
                 }
             }
@@ -825,6 +894,7 @@ static void __cdecl my_drawline(const u8 *src)
             if (df) {
                 int y0 = 0, y1 = 0, y, i;
                 if (fscanf(df, "%d %d", &y0, &y1) != 2) y1 = -1;
+                if (fscanf(df, "%d", &dbg_line) != 1) dbg_line = -1;
                 fclose(df); remove(dump_path);
                 dbg_until = hi_frame + 200; dbg_draw = 30000;
                 for (y = y0; y <= y1 && y < 200; y++)
@@ -1241,6 +1311,15 @@ static u8 *build_imgp(void *fp, const RFile *ip, u32 *outsz)
                 if (hi_ent[k].x == *(const u16 *)hp && hi_ent[k].color == hp[6]) {
                     hi_ent[k].perm = 1; hi_ent[k].owner = owner;
                     if (vmp) memcpy(hi_ent[k].vm, vmp + i * 8, 8);
+                    /* 絵は読んだだけで画面に出るとは限らない（人物の画面の絵は、経歴の画面の裏でも読み直される）。
+                       確かめる点のある行が全部合うまで描かない（確かめる点の無い行を先に描いて、点が 1 フレームだけ出た） */
+                    {
+                        const u16 *g8 = jglyph(&jf8, hi_ent[k].a, hi_ent[k].b);
+                        int r; u8 br = 0;
+                        if (g8) for (r = 0; r < 8; r++) if ((g8[r] >> 8) & hi_ent[k].vm[r]) br |= (u8)(1 << r);
+                        hi_ent[k].badrows = br;
+                        if (br) hi_ent[k].ok = 0;
+                    }
                 }
         }
     }
