@@ -6,10 +6,12 @@
 char g_dir[MAX_PATH];
 int g_trace;
 int g_nopatch;
-int g_test;
 int g_nostr, g_nohook;
 static HMODULE g_winmm;
+#ifdef ARJP_TEST
+int g_test;
 static int g_log;
+#endif
 
 /* ---------- winmm の転送 ---------- */
 #include "winmm_exports.h"
@@ -30,9 +32,10 @@ static void LoadWinmm(void)
 #define THUNK(n) __declspec(naked) void ex_##n(void) { __asm { jmp dword ptr [p_##n] } }
 WINMM_FUNCS(THUNK)
 
-/* ---------- 記録 ---------- */
+/* ---------- 記録（試験版 build.bat test だけ。配布版では何もしない） ---------- */
 void LogF(const char *fmt, ...)
 {
+#ifdef ARJP_TEST
     char buf[1024], path[MAX_PATH];
     va_list ap;
     FILE *f;
@@ -44,6 +47,9 @@ void LogF(const char *fmt, ...)
     wsprintfA(path, "%s\\arenajp.log", g_dir);
     f = fopen(path, "a");
     if (f) { fputs(buf, f); fputc('\n', f); fclose(f); }
+#else
+    (void)fmt;
+#endif
 }
 
 /* ---------- コールバックの割り当て ---------- */
@@ -76,12 +82,18 @@ static uint32_t __cdecl Dispatch(uint32_t cb)
 {
     CB_Handler h = DBX_CBTABLE[cb];
     uint32_t r;
+#ifdef ARJP_TEST
     uint16_t ax = 0xFFFF;
+#endif
     if (!g_inited) { g_inited = 1; Game_Init(); }
     Game_Tick();
+#ifdef ARJP_TEST
     if (g_test) TestCtl_Before(cb, &ax);
+#endif
     r = h();
+#ifdef ARJP_TEST
     if (g_test && ax != 0xFFFF) TestCtl_After(ax);
+#endif
     return r;
 }
 
@@ -131,11 +143,14 @@ static void Init(HMODULE self)
     s = strrchr(g_dir, '\\'); if (s) *s = 0;
     lstrcatA(g_dir, "\\ARENAJP");
     wsprintfA(ini, "%s\\arenajp.ini", g_dir);
+#ifdef ARJP_TEST
+    /* 試験用の切り替え（arenajp.ini の [Debug]）。配布版では読まず、どれも 0 のまま */
     g_log = GetPrivateProfileIntA("Debug", "Log", 0, ini);
     g_trace = GetPrivateProfileIntA("Debug", "TraceText", 0, ini);
     g_nopatch = GetPrivateProfileIntA("Debug", "NoPatch", 0, ini);
     g_nostr = GetPrivateProfileIntA("Debug", "NoStrings", 0, ini);
     g_nohook = GetPrivateProfileIntA("Debug", "NoHooks", 0, ini);
+#endif
     if (GetPrivateProfileIntA("Main", "Enable", 1, ini) == 0) return;
     if (!CheckHost()) { LogF("DOSBox が想定と違うので何もしない"); return; }
     {
@@ -150,8 +165,10 @@ static void Init(HMODULE self)
         if (!Hires_Install(p)) LogF("16 ドットの描き直しは使わない");
     }
     InstallHook();
+#ifdef ARJP_TEST
     g_test = GetPrivateProfileIntA("Debug", "Test", 0, ini);
     if (g_test) TestCtl_Start();
+#endif
     LogF("arenajp: 差し込み完了");
 }
 

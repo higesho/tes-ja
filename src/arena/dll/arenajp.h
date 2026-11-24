@@ -65,11 +65,13 @@ uint8_t *Img_Patch(const char *name, const uint8_t *d, uint32_t n, uint32_t *out
 /* files.c */
 void Files_Install(void);
 
-/* testctl.c */
+/* testctl.c（試験版 build.bat test だけ） */
+#ifdef ARJP_TEST
 void TestCtl_Start(void);
 void TestCtl_Before(uint32_t cb, uint16_t *ax);
 void TestCtl_After(uint16_t ax);
 extern int g_test;
+#endif
 
 /* text.c */
 uint8_t *ReadAll(const char *path, uint32_t *size);

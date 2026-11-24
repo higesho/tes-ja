@@ -2,7 +2,7 @@
 
 GOG 版 The Elder Scrolls: Arena（DOS）用の `DOSBOX\winmm.dll`（DOSBox の中のゲームを書き換えて日本語を描く）と、そのデータ（ARENAJP フォルダ）を作る道具です。
 
-- `dll/` … winmm.dll の本体。`build.bat`（Visual Studio の x86 の cl）で `dll/out/winmm.dll` ができます
+- `dll/` … winmm.dll の本体。`build.bat`（Visual Studio の x86 の cl）で `dll/out/winmm.dll` ができます。`build.bat test` で作る試験版（`build/test/winmm.dll`、試験用の操作口 `testctl.c` とログ入り）は配布しません
 - `tools/unpklite.py` … ACD.EXE（PKLITE 圧縮）を展開する
 - `tools/bsa.py` / `tools/img.py` … ゲームの書庫 BSA と絵を読む
 - `tools/extract.py` / `tools/exe_strings.py` … 英文を `translation/en/` に抜き出す

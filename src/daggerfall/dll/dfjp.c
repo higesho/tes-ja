@@ -78,14 +78,21 @@ static const u8 orig_ds[5] = {0x51, 0x55, 0x56, 0x57, 0xa3};
 static const u8 orig_cw[5] = {0x55, 0x89, 0xe5, 0x53, 0x51};
 
 /* ===================== ログ ===================== */
+/* ログは試験版（build.bat test）だけ。配布版では logfp は開かず、LOG は何もしない */
 static FILE *logfp;
+#ifdef DFJP_TEST
 static char dump_path[MAX_PATH];
+#endif
 static void LOG(const char *fmt, ...)
 {
+#ifdef DFJP_TEST
     va_list ap;
     if (!logfp) return;
     va_start(ap, fmt); vfprintf(logfp, fmt, ap); va_end(ap);
     fputc('\n', logfp); fflush(logfp);
+#else
+    (void)fmt;
+#endif
 }
 
 /* ===================== データ（リソースに埋め込み） ===================== */
@@ -370,7 +377,7 @@ static void hi_add(s32 x, s32 y, u8 a, u8 b, u8 color)
             hi_ent[i].a = a; hi_ent[i].b = b; hi_ent[i].seen = hi_frame; memset(hi_ent[i].vm, 0xff, 8); hi_ent[i].owner = 0; hi_ent[i].badrows = 0; if (!hi_ent[i].ok) { hi_ent[i].ok = 1; mark_redraw(&hi_ent[i]); } return; }
     }
     if (hi_free < 0) hi_reclaim();
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     { extern int dbg_draw_ext(void); if (dbg_draw_ext() && y >= 70 && y < 130) LOG("ADD x=%d y=%d col=%d free=%d n=%d", x, y, color, hi_free, hi_n); }
 #endif
     if (hi_free < 0) return;
@@ -439,7 +446,7 @@ static s32 p_cx = -1000, p_cy = -1000;      /* 直前の画面で見つけた位
 static int dbg_c0hits, dbg_maxline;
 static void cursor_frame(void)
 {
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     { static u32 k; if ((k++ & 63) == 0) LOG("矢印さがし: 見つけた %d,%d 一色目の当たり %d 最後の行 %d 絵の1行目 %02X%02X%02X", f_cx, f_cy, dbg_c0hits, dbg_maxline,
         rd8(D(D_CUR_IMG)), rd8(D(D_CUR_IMG) + 1), rd8(D(D_CUR_IMG) + 2)); }
 #endif
@@ -723,7 +730,7 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
             }
             if (!cov) bad++;
         }
-#ifdef TESTCTL
+#ifdef DFJP_TEST
         if (e->ok && bad && good && located) {
             /* 試験用: 字の一部だけ合わなくなった（8 ドットに戻る）。矢印の記録が重なっていたか */
             int nearc = 0, q;
@@ -763,7 +770,7 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
             }
         }
 #endif
-#ifdef TESTCTL
+#ifdef DFJP_TEST
         if (e->perm && e->ok && bad && !good) { static u32 np; if (np++ < 3000) LOG("絵の字が消えた F=%u L=%d x=%d y=%d bad=%d", hi_frame, L, e->x, e->y, bad); }
         if (e->perm && !e->ok && good && !bad) { static u32 nq; if (nq++ < 3000) LOG("絵の字が戻った F=%u L=%d x=%d y=%d", hi_frame, L, e->x, e->y); }
 #endif
@@ -775,7 +782,7 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
             e->ok = (u8)(e->badrows == 0);
             if (e->ok && !was) mark_redraw(e);
         }
-#ifdef TESTCTL
+#ifdef DFJP_TEST
         if (dbg_until && hi_frame <= dbg_until && L >= 76 && L <= 84 && !e->perm && bad) {
             char pix[64]; int pc, pn = 0;
             for (pc = 0; pc < 8; pc++) pn += sprintf(pix + pn, "%d%s,", src[e->x + pc], (m & (0x80 >> pc)) ? "*" : "");
@@ -788,7 +795,7 @@ static void hi_line(int L, const u8 *src, u8 *out, s32 pitch, int n)
             if (!f) cols[ncol++] = e->color;
         }
     }
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     if (dbg_line == L && hi_frame <= dbg_until) {
         char b[1400]; int bn = 0, q;
         bn += sprintf(b + bn, "F=%u 行 %d 矢印の印:", hi_frame, L);
@@ -887,7 +894,7 @@ static void __cdecl my_drawline(const u8 *src)
     if (line == 0) {
         cursor_frame();
         hi_frame++; if (hi_inited && (hi_frame & 63) == 0) hi_prune();
-#ifdef TESTCTL
+#ifdef DFJP_TEST
         /* 試験用: dfjp_dump.txt（y0 y1）があれば、その範囲の字の記録をログに書いて消す */
         if (logfp && hi_inited && (hi_frame & 31) == 0) {
             FILE *df = fopen(dump_path, "r");
@@ -923,7 +930,7 @@ static void __cdecl my_drawline(const u8 *src)
     /* その画面で最初に変わった行では、DOSBox がここで描き始める（RENDER_DrawLine が描く関数に替わる）。
        そのとき描く前の位置は直前の画面の終わりのまま残っているので、描いた後の位置から 2 行戻った所をこの行とする
        （前は after <= before で抜けてしまい、その行だけ 14 ドットを描かず 8 ドットが残った。矢印が動くと矢印の上の行がそれに当たる） */
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     if (fp0 != fp1) { static int nf; if (nf++ < 5) LOG("描き始め: 行 %u 関数 %p→%p lineHandler %08x %08x 位置 %p→%p", line, (void *)fp0, (void *)fp1,
         *(u32 *)DB_LINE_HANDLER, *(u32 *)(DB_LINE_HANDLER + 4), before, after); }
 #endif
@@ -931,7 +938,7 @@ static void __cdecl my_drawline(const u8 *src)
         ((u32)fp1 == *(u32 *)DB_LINE_HANDLER || (u32)fp1 == *(u32 *)(DB_LINE_HANDLER + 4))) before = after - 2 * pitch;
     if (!before || !after || pitch <= 0 || after <= before) return;
     n = (int)((after - before) / pitch);
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     if (dbg_until && hi_frame <= dbg_until && line >= 38 && line <= 52) LOG("LINE %u n=%d", line, n);
 #endif
     if (n > 3) { before = after - 2 * pitch; n = 2; }
@@ -996,7 +1003,7 @@ static u32 cb_drawstr_fn(void)
     h = (s32)rd32(D(D_HEIGHT)); xsp = (s32)rd32(D(D_XSP)); ysp = (s32)rd32(D(D_YSP)); spw = (s32)rd32(D(D_SPACEW));
     jf = pick_jf(h);
     getctx(&c);
-#ifdef TESTCTL
+#ifdef DFJP_TEST
     if (dbg_draw > 0) {
         static u32 seenk[1024]; static int nseen;
         u32 key = (u32)x << 20 | (u32)y << 8 | c.color, q2; int dup = 0;
@@ -1513,11 +1520,13 @@ static void install(HMODULE self)
     char path[MAX_PATH], *q;
     GetModuleFileNameA(self, path, MAX_PATH);
     q = strrchr(path, '\\');
+#ifdef DFJP_TEST
+    /* 試験用: dfjp_debug.txt があればログを書く */
     if (q) {
         strcpy(q + 1, "dfjp_debug.txt");
         if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) {
             strcpy(q + 1, "dfjp_dump.txt"); strcpy(dump_path, path);
-#ifdef TESTCTL
+#ifdef DFJP_TEST
             strcpy(q + 1, "dfjp_nocur.txt");     /* 試験用: 矢印はゲームが描く（前の版と比べる） */
             if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) nocur = 1;
 #endif
@@ -1525,11 +1534,14 @@ static void install(HMODULE self)
             logfp = fopen(path, "w");
         }
     }
+#endif
     if (!check_dosbox()) { LOG("DOSBox の版が違うので何もしない"); return; }
+#ifdef DFJP_TEST
     if (q) {
         strcpy(q + 1, "dfjp_off.txt");      /* 試験用: 英語のまま動かす */
         if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) { LOG("dfjp_off.txt があるので差し替えない"); return; }
     }
+#endif
     InitializeCriticalSection(&vf_cs);
     load_blob(self);
     LOG("データ %u バイト、字 %u、差し替えファイル %d", blobsize, ncmap, nrfiles);
@@ -1576,7 +1588,7 @@ static void load_winmm(void)
 #define THUNK(n) __declspec(naked) void ex_##n(void) { __asm { jmp dword ptr [p_##n] } }
 WINMM_FUNCS(THUNK)
 
-#ifdef TESTCTL
+#ifdef DFJP_TEST
 #include "testctl.inc"
 #endif
 
@@ -1587,7 +1599,7 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID r)
         DisableThreadLibraryCalls(h);
         load_winmm();
         install(h);
-#ifdef TESTCTL
+#ifdef DFJP_TEST
         ctl_start();
 #endif
     }

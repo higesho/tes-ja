@@ -2,7 +2,7 @@
 
 GOG 版 The Elder Scrolls II: Daggerfall（DOS）用の `DOSBOX\winmm.dll`（DOSBox の中のゲームを書き換えて日本語を描く）と、そのデータを作る道具です。
 
-- `dll/` … winmm.dll の本体。`build.bat`（Visual Studio の x86 の cl と rc）で組み立てます。先に `tools/build.py` で `dll/dfjp.bin` を作ってください
+- `dll/` … winmm.dll の本体。`build.bat`（Visual Studio の x86 の cl と rc）で組み立てます。先に `tools/build.py` で `dll/dfjp.bin` を作ってください。`build.bat test` で作る試験版（`build/test/winmm.dll`、試験用の操作口とログ入り）は配布しません
 - `tools/rsc.py` / `tools/dftext.py` … ゲームの文章ファイルを読み、日本語の折り返しをする
 - `tools/extract.py` / `tools/exe_strings.py` … 英文を `translation/en/` に抜き出す
 - `tools/build.py` / `tools/jpdata.py` / `tools/mkdata.py` … 訳と字の形から `dll/dfjp.bin` を作る

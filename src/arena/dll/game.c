@@ -400,6 +400,7 @@ void Game_Init(void)
     Dict_Load(p);
     wsprintfA(p, "%s\\names.bin", g_dir);
     Names_Load(p);
+#ifdef ARJP_TEST
     /* 試験: ARENAJP\\dicttest.txt があれば、各行を辞書に通して記録に書く */
     wsprintfA(p, "%s\\dicttest.txt", g_dir);
     {
@@ -419,6 +420,7 @@ void Game_Init(void)
             }
         }
     }
+#endif
     wsprintfA(p, "%s\\exe_ja.bin", g_dir);
     g_exe = ReadAll(p, &g_exesize);
     LogF("コールバック %d %d、exe_ja %s", cbW, cbD, g_exe ? "あり" : "なし");

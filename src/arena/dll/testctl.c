@@ -1,4 +1,4 @@
-/* 試験用の操作口（loljp.ini の [Debug] Test=1 のときだけ）
+/* 試験用の操作口（試験版 build.bat test だけに入る。arenajp.ini の [Debug] Test=1 のときだけ動く）
    共有メモリ Local\ARJP_CTL_<pid> に命令を書くと、SDL のイベントとして積む */
 #include "arenajp.h"
 

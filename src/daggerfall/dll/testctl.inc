@@ -1,4 +1,4 @@
-/* 試験用の操作口（build_test.bat で TESTCTL を付けたときだけ入る。配布物には入れない）
+/* 試験用の操作口（build.bat test で DFJP_TEST を付けたときだけ入る。配布物には入れない）
    共有メモリ Local\DFJP_CTL_<pid> に命令を書くと、SDL のイベントとして積む */
 typedef struct { uint8_t type, which, state; uint16_t x, y; int16_t xrel, yrel; } SMotion;
 typedef struct { uint8_t type, which, button, state; uint16_t x, y; } SButton;
